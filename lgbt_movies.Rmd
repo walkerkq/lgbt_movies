@@ -79,11 +79,7 @@ An analysis of IMDb ratings and reviewer makeup for movies with LGBT representat
 ### A note on methodology   
 To create dataset for this analysis, I first needed a list of LGBT characters in movies. Wikipedia has an extensive list, so I started there: [https://en.wikipedia.org/wiki/List_of_films_with_LGBT_characters](https://en.wikipedia.org/wiki/List_of_films_with_LGBT_characters). I scraped the movie name, release year, actor name, character name, and classification ("gay", "lesbian", "trans woman"). The list is subject to the biases of its Wikipedia contributors, and is certainly not exhaustive or 100% accurate. For example, I omitted the Harry Potter movies because Dumbledore's sexual orientation is inferred from the books and never explicitly noted in the movie series. The rest of the list was taken at face value.  
 
-```{r}
-head(char[,1:4])
-```
-
-Then, I scraped IMDb [movie](http://www.imdb.com/title/tt0162677/] and [rating](http://www.imdb.com/title/tt0162677/ratings?ref_=tt_ov_rt) information by searching the movie's name and release year. I also matched each character to their listing position on IMDb - their billing - to help determine how central a character is to a movie's plot. IMDb lists characters in the order they are credited in the movie credits, which is usually descending based on screen time, but sometimes is in order of appearance. This will be important later.  
+Then, I scraped IMDb [movie](http://www.imdb.com/title/tt0162677/) and [rating](http://www.imdb.com/title/tt0162677/ratings?ref_=tt_ov_rt) information by searching the movie's name and release year. I also matched each character to their listing position on IMDb - their billing - to help determine how central a character is to a movie's plot. IMDb lists characters in the order they are credited in the movie credits, which is usually descending based on screen time, but sometimes is in order of appearance. This will be important later.  
 
 That yielded ~450 LGBT characters and ~300 movies. In order to compare this sample to "non-LGBT" movies, I grabbed a sample of 300 movies from [this dataset](https://github.com/walkerkq/fan_favorite_actors/blob/master/movieInfo.csv). The sample was weighted by release year to mimic the distribution of the LGBT character sample (more movies from recent years). For analysis, the dataset was restricted to movies released during or after 1980 with at least 2000 IMDb ratings.
 
@@ -92,10 +88,23 @@ Next, the movies were split into two groups: **LGBT** and **control**.
 * **LGBT**: The movie had at least one LGBT character with billing in the top 5 (i.e. listed in the first 5 characters on IMDb); n=176  
 * **control**: All other movies in the sample (including movies with LGBT characters listed 6th or later); n=361  
 
+Here's a peek at the source data before it is combined into one workable dataset.  
 
-```{r}
-head(movies[100:105,c(1,2,4,26)])
+#### Character data from Wikipedia and IMDb  
+```{r echo = F} 
+kable(char[char$id %in% "/title/tt0134119/",], row.names=F)
 ```
+
+#### IMDb Metadata  
+```{r echo = F} 
+kable(movies[movies$id %in% "/title/tt0134119/",c(1,2,4,6,26)], row.names=F)
+```
+
+#### IMDb Reviewer Demographics  
+```{r echo = F}
+kable(ratings[ratings$id %in% "/title/tt0134119/" & !ratings$Gender %in% "All" & !ratings$Age %in% "All Ages", ], row.names=F)
+```
+
 
 ## 1. Exploratory Data Analysis  
 First, an exploration of the dataset of LGBT characters and movies.  
@@ -136,12 +145,13 @@ LGBT characters appear most often in drama, comedies and romance movies, and lea
 
 The dataset is skewed to include more movies from 1995-now than 1980-1995, which is reflective of which movies get reviewed on IMDb (more users rate current movies than older movies). LGBT representation has been fairly flat since 2000, ranging from 3-8 movies per year (!!). 
 
-
+  
 ## 2. IMDb Ratings  
+
 #### 2.a. Higher IMDb Ratings Overall    
 The distribution of ratings (IMDb creates an average of ratings with some unknown weighting) is left skewed. A transformation to the 2.5 power brings it closer to normality. A t-test between the control and LGBT movie groups shows a significant difference in the IMDb ratings of the two groups, with movies with LGBT characters rated higher.  
 
-```{r imdbRating, fig.height=4, fig.width=12}
+```{r imdbRatingDistribution, fig.height=4, fig.width=12}
 # IMDb Rating Distribution by Group, Histogram
 imdb_rating_dist <- ggplot(movies, aes(imdb_rating)) + geom_histogram(aes(fill=group), binwidth=0.3) + 
   labs(title="Average IMDb Rating", x="Avg IMDb Rating", y="") +
@@ -199,7 +209,7 @@ gender_age_rate <- gender_age_rate %>% subset(Age != "<18")
 
 Based on the interaction plot below (shown untransformed for interpretability), there are both age and gender effects on IMDb rating. The youngest age group, 18-29, rates movies higher than the 30-44 and 45+ age groups, on average. Females of all age groups rate movies higher than males (especially females over 45). There is also a main effect where movies with LGBT representation garner higher ratings from all age and genders groups. 
 
-```{r rateGender, fig.width=12, fig.height=4}
+```{r imdbRatingAcrossAgeGender, fig.width=12, fig.height=4}
 # Group, age and gender interaction plot
 gender_age_rate %>%
   group_by(Gender, Age, group) %>%
@@ -212,7 +222,7 @@ gender_age_rate %>%
 
 An ANOVA confirms that gender, age group, and LGBT characters all significantly impact IMDb ratings. The interactions (group/age, group/gender, age/gender) were not found to be significant. The Tukey family-wise comparison (untransformed for interpretability) shows that the movie having an LGBT character billed in the top 5 represents a 0.32 increase in rating. The reviewer being female contributes a 0.15 bump, and being in the 18-29 age group increases the rating 0.19 vs. 45+ and 30-44.  
 
-```{r rateGenderAnova}
+```{r imdbRatingAcrossAgeGenderLm}
 # fit linear model with interactions
 gender_age_rate_fit <- lm(Rating_t ~ group + Age*group + Gender*group + Age*Gender, data=gender_age_rate)
 
@@ -228,7 +238,7 @@ TukeyHSD(aov(Rating ~ group + Age + Gender, data=gender_age_rate))
 
 The percentage of IMDb reviews that come from women is [extremely skewed](https://oneroomwithaview.com/2016/08/10/imdb-analysed-men-womens-favourite-films-differ/). On average, just 19% of ratings for a given movie on IMDb are from females. To fix this skew, the distribution was transformed using a log transform. A t-test showed that this hypothesis is true - the control and LGBT groups differ significantly in the percentage of female reviews, with the LGBT group gaining more reviews from women than the control group.  
 
-```{r femaleReviewers, fig.height=4, fig.width=12}
+```{r pctFemaleReviewersDistribution, fig.height=4, fig.width=12}
 gender_age_pct <- ratings %>%
   subset(!Gender %in% "All") %>%
   group_by(Age, id) %>%
@@ -268,7 +278,7 @@ grid.arrange(pct_female_dist, pct_female_dist_transformed, pct_female_boxplot, n
 
 Is this influenced by other factors? After taking release date, genre, and MPAA rating into account, the LGBT group was still found to be significant, contributing about a 7% increase in ratings from females.     
 
-```{r pctFem_lm}
+```{r pctFemaleReviewersLm}
 # restrict to females, all ages; select variables
 gender_age_pct_female <- gender_age_pct %>% 
   subset(Gender %in% "Females" & Age %in% "All Ages") %>% 
@@ -295,7 +305,7 @@ Dramas, romance, thrillers, and adventure movies were more likely to have higher
 #### 3.b. Higher Percentage of Female Reviewers in Each Age Group  
 Is there a certain age group that influences this more than others? According to the interaction plot below, there is a main effect between the LGBT and control groups, with the LGBT group being higher across all age groups. There is an interaction with age, showing that the effect is stronger in younger reviewers.  
 
-```{r pctFem, fig.width=3, fig.height=3}
+```{r pctFemaleReviewersAcrossAgeGender, fig.width=3, fig.height=3}
 # Restrict to females broken into age groups, minus 18 and under
 # Transform percent variable
 gender_age_pct_gf <- gender_age_pct %>%
@@ -316,7 +326,7 @@ An ANOVA confirmed that age group, LGBT/control, and an interaction between age 
 
 A Tukey family-wise comparison showed that the percentage of female reviewers was lower as age groups increased, and that being in the LGBT group contributed to about 7% more female reviewers. For the interaction, it showed that all age groups had higher percentage of female reviewers for movies in the LGBT group, but the effect was uneven, being strongest for 18-29 and weakest for those 45+. 
 
-```{r pctFemANOVA}
+```{r pctFemaleReviewersAcrossAgeGenderLm}
 # fit a linear model to explore interaction
 gender_age_pct_interact <- lm(Gender_Percent_t ~ Age*group, data=gender_age_pct_gf)
 summary(gender_age_pct_interact)

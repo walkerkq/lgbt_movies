@@ -16,19 +16,7 @@ An analysis of IMDb ratings and reviewer makeup for movies with LGBT representat
 
 To create dataset for this analysis, I first needed a list of LGBT characters in movies. Wikipedia has an extensive list, so I started there: <https://en.wikipedia.org/wiki/List_of_films_with_LGBT_characters>. I scraped the movie name, release year, actor name, character name, and classification ("gay", "lesbian", "trans woman"). The list is subject to the biases of its Wikipedia contributors, and is certainly not exhaustive or 100% accurate. For example, I omitted the Harry Potter movies because Dumbledore's sexual orientation is inferred from the books and never explicitly noted in the movie series. The rest of the list was taken at face value.
 
-``` r
-head(char[,1:4])
-```
-
-    ##                  id          character classification              actor
-    ## 1 /title/tt0063462/        Carmen Ghia            Gay  Andreas Voutsinas
-    ## 2 /title/tt0063462/      Roger De Bris            Gay Christopher Hewett
-    ## 3 /title/tt0083745/             Joanne    Trans woman        Karen Black
-    ## 4 /title/tt0086320/       Angela Baker    Trans woman       Felissa Rose
-    ## 5 /title/tt0102395/ Hollywood Montrose            Gay     Meshach Taylor
-    ## 6 /title/tt0118111/    Corky St. Clair            Gay  Christopher Guest
-
-Then, I scraped IMDb \[movie\](<http://www.imdb.com/title/tt0162677/>\] and [rating](http://www.imdb.com/title/tt0162677/ratings?ref_=tt_ov_rt) information by searching the movie's name and release year. I also matched each character to their listing position on IMDb - their billing - to help determine how central a character is to a movie's plot. IMDb lists characters in the order they are credited in the movie credits, which is usually descending based on screen time, but sometimes is in order of appearance. This will be important later.
+Then, I scraped IMDb [movie](http://www.imdb.com/title/tt0162677/) and [rating](http://www.imdb.com/title/tt0162677/ratings?ref_=tt_ov_rt) information by searching the movie's name and release year. I also matched each character to their listing position on IMDb - their billing - to help determine how central a character is to a movie's plot. IMDb lists characters in the order they are credited in the movie credits, which is usually descending based on screen time, but sometimes is in order of appearance. This will be important later.
 
 That yielded ~450 LGBT characters and ~300 movies. In order to compare this sample to "non-LGBT" movies, I grabbed a sample of 300 movies from [this dataset](https://github.com/walkerkq/fan_favorite_actors/blob/master/movieInfo.csv). The sample was weighted by release year to mimic the distribution of the LGBT character sample (more movies from recent years). For analysis, the dataset was restricted to movies released during or after 1980 with at least 2000 IMDb ratings.
 
@@ -37,17 +25,32 @@ Next, the movies were split into two groups: **LGBT** and **control**.
 -   **LGBT**: The movie had at least one LGBT character with billing in the top 5 (i.e. listed in the first 5 characters on IMDb); n=176
 -   **control**: All other movies in the sample (including movies with LGBT characters listed 6th or later); n=361
 
-``` r
-head(movies[100:105,c(1,2,4,26)])
-```
+Here's a peek at the source data before it is combined into one workable dataset.
 
-    ##                    id                   title release_date   group
-    ## 100 /title/tt0126886/                Election   1999-05-07    lgbt
-    ## 101 /title/tt0155711/                Flawless   1999-11-24    lgbt
-    ## 102 /title/tt0175880/                Magnolia   2000-01-07 control
-    ## 103 /title/tt0162677/           Summer of Sam   1999-07-02    lgbt
-    ## 104 /title/tt0144117/     The Boondock Saints   1999-11-19    lgbt
-    ## 105 /title/tt0134119/ The Talented Mr. Ripley   1999-12-25    lgbt
+#### Character data from Wikipedia and IMDb
+
+| id                | character  | classification | actor      |  billing|
+|:------------------|:-----------|:---------------|:-----------|--------:|
+| /title/tt0134119/ | Tom Ripley | Bisexual       | Matt Damon |        1|
+
+#### IMDb Metadata
+
+| id                | title                   | release\_date |  imdb\_rating| group |
+|:------------------|:------------------------|:--------------|-------------:|:------|
+| /title/tt0134119/ | The Talented Mr. Ripley | 1999-12-25    |           7.4| lgbt  |
+
+#### IMDb Reviewer Demographics
+
+| Gender  | Age    |  Rating|  Count| id                |
+|:--------|:-------|-------:|------:|:------------------|
+| Females | &lt;18 |     8.1|     20| /title/tt0134119/ |
+| Females | 18-29  |     7.6|   8623| /title/tt0134119/ |
+| Females | 30-44  |     7.4|  14082| /title/tt0134119/ |
+| Females | 45+    |     7.5|   3850| /title/tt0134119/ |
+| Males   | &lt;18 |     7.8|     48| /title/tt0134119/ |
+| Males   | 18-29  |     7.5|  21732| /title/tt0134119/ |
+| Males   | 30-44  |     7.3|  53603| /title/tt0134119/ |
+| Males   | 45+    |     7.2|  15953| /title/tt0134119/ |
 
 1. Exploratory Data Analysis
 ----------------------------
@@ -83,7 +86,7 @@ plot_char_count_time <- ggplot(movies, aes(release_date)) + geom_histogram(aes(f
 grid.arrange(plot_char_count_type, plot_char_count_billing,plot_char_count_time, ncol=3)
 ```
 
-![](lgbt_rmd_files/figure-markdown_github/eda-1.png)
+![](lgbt_movies_files/figure-markdown_github/eda-1.png)
 
 Clearly, gay men dominate LGBT representation in movies, making up more than half of the dataset. Trans men get the least representation.
 
@@ -117,7 +120,7 @@ imdb_rating_boxplot <- ggboxplot(movies, x="group", y="imdb_rating_t", color="gr
 grid.arrange(imdb_rating_dist, imdb_rating_dist_transformed, imdb_rating_boxplot, ncol=3)
 ```
 
-![](lgbt_rmd_files/figure-markdown_github/imdbRating-1.png)
+![](lgbt_movies_files/figure-markdown_github/imdbRatingDistribution-1.png)
 
 There could be other factors causing this. To find out, I took genre, release date, and MPAA rating into account. The release date was not significant, but the genres and MPAA rating were. R rated movies and dramas get higher ratings, while comedies, romance and thrillers get lower ratings. Despite adding these features into the model, the LGBT factor was still significant, contributing about 0.27 to the rating (e.g. a bump from 7.0 to 7.27). The table below shows each feature's contribution (intercept is the starting value, plus/minus the feature's value if present).
 
@@ -221,7 +224,7 @@ gender_age_rate %>%
        y="Avg. IMDb Rating", x= "")
 ```
 
-![](lgbt_rmd_files/figure-markdown_github/rateGender-1.png)
+![](lgbt_movies_files/figure-markdown_github/imdbRatingAcrossAgeGender-1.png)
 
 An ANOVA confirms that gender, age group, and LGBT characters all significantly impact IMDb ratings. The interactions (group/age, group/gender, age/gender) were not found to be significant. The Tukey family-wise comparison (untransformed for interpretability) shows that the movie having an LGBT character billed in the top 5 represents a 0.32 increase in rating. The reviewer being female contributes a 0.15 bump, and being in the 18-29 age group increases the rating 0.19 vs. 45+ and 30-44.
 
@@ -316,7 +319,7 @@ pct_female_boxplot <- gender_age_pct %>%
 grid.arrange(pct_female_dist, pct_female_dist_transformed, pct_female_boxplot, ncol=3)
 ```
 
-![](lgbt_rmd_files/figure-markdown_github/femaleReviewers-1.png)
+![](lgbt_movies_files/figure-markdown_github/pctFemaleReviewersDistribution-1.png)
 
 Is this influenced by other factors? After taking release date, genre, and MPAA rating into account, the LGBT group was still found to be significant, contributing about a 7% increase in ratings from females.
 
@@ -408,7 +411,7 @@ gender_age_pct_gf %>%
        y="Percent Female Reviews", x= "")
 ```
 
-![](lgbt_rmd_files/figure-markdown_github/pctFem-1.png)
+![](lgbt_movies_files/figure-markdown_github/pctFemaleReviewersAcrossAgeGender-1.png)
 
 An ANOVA confirmed that age group, LGBT/control, and an interaction between age group and LGBT/control are all significant influences on the percentage of female reviewers for a movie.
 
