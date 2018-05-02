@@ -3,19 +3,18 @@ title: "Do IMDb Ratings Differ Between Movies With and Without LGBT Representati
 author: "Kaylin Pavlik"
 date: "April 2018"
 output:
-  pdf_document: default
-  github_document: default
+  github_document
 urlcolor: blue
 ---
 
-```{r setup, include=FALSE}
+```{r setup, include = FALSE}
 library(dplyr)
 library(ggplot2)
 library(knitr)
 library(reshape2)
 library(gridExtra)
 library(ggpubr)
-knitr::opts_chunk$set(warning = FALSE, message=FALSE)
+knitr::opts_chunk$set(echo = TRUE, warning = FALSE, message=FALSE)
 
 # load in list of LGBT characters
 # source: https://en.wikipedia.org/wiki/List_of_films_with_LGBT_characters
